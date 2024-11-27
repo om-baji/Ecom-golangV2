@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"backend/db"
 	"backend/helper"
 	"backend/models"
 	"context"
@@ -13,58 +14,22 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/joho/godotenv"
 	"github.com/lucsky/cuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 var userCollection *mongo.Collection
-var accountCollection *mongo.Collection
-var paymentCollection *mongo.Collection
-var cartCollection *mongo.Collection
-var orderCollection *mongo.Collection
-
 var client *mongo.Client
 
 func checkNilError(err error) {
 	if err != nil {
-		log.Fatal(err)
+		fmt.Printf("Something went wrong! %w", err)
 	}
 }
 
 func init() {
-
-	envErr := godotenv.Load()
-
-	if envErr != nil {
-		log.Fatal("Error loading .env file")
-	}
-
-	clientOptions := options.Client().ApplyURI(os.Getenv("MONGODB_URI"))
-
-	client, err := mongo.Connect(context.Background(), clientOptions)
-
-	checkNilError(err)
-
-	fmt.Println("Database Connected!")
-
-	userCollection = client.Database("ECOM").Collection("user")
-	accountCollection = client.Database("ECOM").Collection("account")
-	paymentCollection = client.Database("ECOM").Collection("payment")
-	cartCollection = client.Database("ECOM").Collection("cart")
-	orderCollection = client.Database("ECOM").Collection("order")
-
-}
-
-func CloseConnection() {
-	err := client.Disconnect(context.Background())
-
-	checkNilError(err)
-
-	fmt.Println("Db conenction closed")
-
+	userCollection = db.Database.Collection("users")
 }
 
 func addUser(user models.User) error {
@@ -78,6 +43,7 @@ func addUser(user models.User) error {
 
 	user.Password = password
 	user.IsAdmin = false
+	user.CartId = cuid.New()
 	user.Account = &models.Account{
 		AccountNumber: cuid.New(),
 		Balance:       1000,
@@ -85,6 +51,10 @@ func addUser(user models.User) error {
 	}
 
 	response, err := userCollection.InsertOne(context.TODO(), user)
+
+	fmt.Println(user.Id)
+
+	user.Account.UserId = user.Id
 
 	checkNilError(err)
 
@@ -94,15 +64,10 @@ func addUser(user models.User) error {
 
 }
 
-func Login(w http.ResponseWriter, r *http.Request) (string, error) {
+func Login(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	var credentials models.Credentials
 	var user models.User
-
-	envErr := godotenv.Load()
-
-	if envErr != nil {
-		log.Fatal("Error loading .env file")
-	}
 
 	err := json.NewDecoder(r.Body).Decode(&credentials)
 	checkNilError(err)
@@ -117,7 +82,8 @@ func Login(w http.ResponseWriter, r *http.Request) (string, error) {
 
 	if !success {
 		w.WriteHeader(http.StatusBadRequest)
-		return "", errors.New("wrong password")
+		errors.New("wrong password")
+		return
 	}
 
 	expirationTime := time.Now().Add(time.Minute * 15)
@@ -132,7 +98,9 @@ func Login(w http.ResponseWriter, r *http.Request) (string, error) {
 
 	result := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	token, err := result.SignedString(os.Getenv("JWT_SECRET"))
+	secret := os.Getenv("JWT_SECRET")
+
+	token, err := result.SignedString([]byte(string(secret)))
 
 	checkNilError(err)
 
@@ -142,25 +110,18 @@ func Login(w http.ResponseWriter, r *http.Request) (string, error) {
 		Expires: expirationTime,
 	})
 
-	return token, nil
 }
 
-func Register(w http.ResponseWriter, r *http.Request) (string, error) {
-
+func Register(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	var user models.User
-
-	envErr := godotenv.Load()
-
-	if envErr != nil {
-		log.Fatal("Error loading .env file")
-	}
 
 	json.NewDecoder(r.Body).Decode(&user)
 
 	err := addUser(user)
 	if err != nil {
 		log.Fatal("Somthing went wrong!")
-		return "", nil
+		return
 	}
 
 	expirationTime := time.Now().Add(time.Minute * 15)
@@ -173,9 +134,16 @@ func Register(w http.ResponseWriter, r *http.Request) (string, error) {
 		},
 	}
 
+	secret := os.Getenv("JWT_SECRET")
+
+	if secret == "" {
+		http.Error(w, "JWT_SECRET is not set", http.StatusInternalServerError)
+		return
+	}
+
 	result := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	token, err := result.SignedString(os.Getenv("JWT_SECRET"))
+	token, err := result.SignedString([]byte(secret))
 
 	checkNilError(err)
 
@@ -184,7 +152,5 @@ func Register(w http.ResponseWriter, r *http.Request) (string, error) {
 		Value:   token,
 		Expires: expirationTime,
 	})
-
-	return token, nil
 
 }

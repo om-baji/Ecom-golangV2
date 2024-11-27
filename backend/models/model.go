@@ -45,18 +45,12 @@ type CartItem struct {
 }
 
 type Order struct {
-	Id         string      `json:"orderId" bson:"orderId"`
-	UserId     string      `json:"userId" bson:"userId"`
-	Products   []OrderItem `json:"products" bson:"products"`
-	TotalPrice int64       `json:"totalPrice" bson:"totalPrice"`
-	Status     string      `json:"status" bson:"status"`
-	Time       time.Time   `json:"time" bson:"time"`
-}
-
-type OrderItem struct {
-	ProductId string `json:"productId" bson:"productId"`
-	Quantity  int    `json:"quantity" bson:"quantity"`
-	Price     int64  `json:"price" bson:"price"` // Price at the time of purchase
+	Id         string    `json:"orderId" bson:"orderId"`
+	UserId     string    `json:"userId" bson:"userId"`
+	Products   Cart      `json:"products" bson:"products"`
+	TotalPrice int64     `json:"totalPrice" bson:"totalPrice"`
+	Status     string    `json:"status" bson:"status"`
+	Time       time.Time `json:"time" bson:"time"`
 }
 
 type Product struct {
@@ -73,6 +67,6 @@ type Credentials struct {
 }
 
 type Claims struct {
-	Username      string `json:"username"`
+	Username string `json:"username"`
 	jwt.RegisteredClaims
 }
