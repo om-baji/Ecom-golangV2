@@ -4,22 +4,22 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type User struct {
-	Id       string   `json:"id,omitempty" bson:"_id,omitempty"`
-	Name     string   `json:"name,omitempty" bson:"name,omitempty"`
-	Email    string   `json:"email,omitempty" bson:"email,omitempty"`
-	Password string   `json:"password,omitempty" bson:"password,omitempty"`
-	Account  *Account `json:"account,omitempty" bson:"account,omitempty"`
-	CartId   string   `json:"cartId" bson:"cartId"`
-	IsAdmin  bool     `json:isAdmin" bson:"isAdmin"`
+	ID            primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
+	Name          string             `json:"name,omitempty" bson:"name,omitempty"`
+	Email         string             `json:"email,omitempty" bson:"email,omitempty"`
+	Password      string             `json:"password,omitempty" bson:"password,omitempty"`
+	AccountNumber string             `json:"accountNumber,omitempty" bson:"accountNumber,omitempty"`
+	CartId        string             `json:"cartId" bson:"cartId"`
+	IsAdmin       bool               `json:isAdmin" bson:"isAdmin"`
 }
 
 type Account struct {
 	AccountNumber string     `json:"accountNumber" bson:"accountNumber"`
 	Balance       int64      `json:"balance" bson:"balance"`
-	UserId        string     `json:"userId" bson:"userId"`
 	Payments      []*Payment `json:"payments,omitempty" bson:"payments,omitempty"`
 }
 
@@ -46,10 +46,10 @@ type CartItem struct {
 
 type Order struct {
 	Id         string    `json:"orderId" bson:"orderId"`
-	UserId     string    `json:"userId" bson:"userId"`
-	Products   Cart      `json:"products" bson:"products"`
+	Email      string    `json:"email" bson:"email"`
+	Products   []string  `json:"products" bson:"products"`
 	TotalPrice int64     `json:"totalPrice" bson:"totalPrice"`
-	Status     string    `json:"status" bson:"status"`
+	Status     bool      `json:"status" bson:"status"`
 	Time       time.Time `json:"time" bson:"time"`
 }
 
@@ -62,7 +62,7 @@ type Product struct {
 }
 
 type Credentials struct {
-	Username string `json:"username"`
+	Email    string `json:"email"`
 	Password string `json:"password`
 }
 

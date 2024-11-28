@@ -1,7 +1,7 @@
 package helper
 
 import (
-	"net/http"
+	"fmt"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -19,11 +19,9 @@ func HashPassword(password string) (string, bool) {
 
 func VerifyPassword(hashed string, password string) bool {
 
+	fmt.Println("hashed : ", hashed, "Original", password)
+
 	isValid := bcrypt.CompareHashAndPassword([]byte(hashed), []byte(password))
 
 	return isValid == nil
-}
-
-func JSONResponse(w http.ResponseWriter, r *http.Request, data interface{}){
-	
 }

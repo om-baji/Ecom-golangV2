@@ -20,6 +20,7 @@ import (
 )
 
 var userCollection *mongo.Collection
+var accountCollection *mongo.Collection
 var client *mongo.Client
 
 func checkNilError(err error) {
@@ -30,6 +31,7 @@ func checkNilError(err error) {
 
 func init() {
 	userCollection = db.Database.Collection("users")
+	accountCollection = db.Database.Collection("accounts")
 }
 
 func addUser(user models.User) error {
@@ -44,21 +46,21 @@ func addUser(user models.User) error {
 	user.Password = password
 	user.IsAdmin = false
 	user.CartId = cuid.New()
-	user.Account = &models.Account{
-		AccountNumber: cuid.New(),
+	user.AccountNumber = cuid.New()
+	account := &models.Account{
+		AccountNumber: user.AccountNumber,
 		Balance:       1000,
-		UserId:        user.Id,
 	}
 
-	response, err := userCollection.InsertOne(context.TODO(), user)
-
-	fmt.Println(user.Id)
-
-	user.Account.UserId = user.Id
+	accountReponse, err := accountCollection.InsertOne(context.Background(), account)
 
 	checkNilError(err)
 
-	fmt.Println("Insertion succesfull! ", response.InsertedID)
+	response, err := userCollection.InsertOne(context.TODO(), user)
+
+	checkNilError(err)
+
+	fmt.Println("Insertion succesfull! and Account Created", response.InsertedID, accountReponse.InsertedID)
 
 	return nil
 
@@ -72,24 +74,26 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&credentials)
 	checkNilError(err)
 
-	filter := bson.M{"username": credentials.Username}
+	filter := bson.M{"email": credentials.Email}
 
 	response := userCollection.FindOne(context.Background(), filter, nil)
 
 	response.Decode(&user)
 
+	// fmt.Println(response.Raw())
+
 	success := helper.VerifyPassword(user.Password, credentials.Password)
 
 	if !success {
 		w.WriteHeader(http.StatusBadRequest)
-		errors.New("wrong password")
+		json.NewEncoder(w).Encode(bson.M{"msg": "Login Failed (wrong password)"})
 		return
 	}
 
 	expirationTime := time.Now().Add(time.Minute * 15)
 
 	claims := &models.Claims{
-		Username: credentials.Username,
+		Username: credentials.Email,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -109,7 +113,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		Value:   token,
 		Expires: expirationTime,
 	})
-
+	json.NewEncoder(w).Encode(bson.M{"msg": "Login Successfull"})
 }
 
 func Register(w http.ResponseWriter, r *http.Request) {
